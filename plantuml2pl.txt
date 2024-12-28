@@ -1,0 +1,92 @@
+@startuml
+!theme plain
+actor Admin
+actor Seller
+actor User
+actor "Unauthorized User" as UU
+entity IoT
+participant Backend
+participant "Smart Contract" as SC
+Database Blockchain
+
+== Unauthorized User Request ==
+UU -> Backend : Request account authorization (send wallet address)
+Backend -> SC : Check if wallet address is already in chain
+SC -> Blockchain : Put request on chain (if valid)
+
+alt Response
+else success
+   SC -> Backend : Response Successfully put on chain
+else some kind of failure
+   SC -> Backend : Response Error: (User Exists, User type)
+end
+
+Backend -> UU : Pass Response
+
+== Seller Viewing Requests ==
+Seller -> Backend : Request to see recent user authorization requests
+Backend -> SC : Fetch recent requests (unauthorized users)
+SC -> Backend : Return recent requests (unauthorized users)
+Backend -> Seller : Return recent requests
+
+== Seller Confirming Unauthorized Users ==
+Seller -> Backend : Confirm Unauthorized User as Seller or User
+Backend -> SC : Verification request
+SC -> Blockchain : Verificate User
+SC -> Backend : Pass Response
+Backend -> Seller : Pass Response
+
+== EV Charging Validation ==
+User -> IoT : Request charging
+IoT -> Backend : Request user validation
+Backend -> SC : Check subscription status (verify with wallet address on blockchain)
+SC -> Backend : Subscription status (Valid/Invalid)
+
+alt Response
+else success
+   Backend -> IoT : Begin charging
+else some kind of failure
+   Backend -> IoT : Reject charging
+end
+
+== Charging Log ==
+IoT -> Backend : Pass charging log (after user disconnected)
+Backend -> SC : Confirm log with Smart Contract
+SC -> SC : Check if valid
+Backend -> SC : Save log to blockchain
+SC -> Blockchain : Save charging log to blockchain
+SC -> Backend : Log confirmed
+Backend -> IoT : Confirmation
+
+== Create Summary ==
+Admin -> Backend : Request summary
+Backend -> SC : Retrieve data (validate role/subscription)
+SC -> Backend : Provide summary data (logs, subscription status, etc.)
+Backend -> SC : Send Summary
+SC -> SC : Check if valid
+SC -> Blockchain : Save summaries to blockchain
+SC -> Backend : Summaries confirmed
+Backend -> Admin : Return data to admin
+
+== User Requesting Subscription ==
+User -> Backend : Request subscription
+Backend -> SC : Request subscription verification (check user details)
+SC -> Blockchain : Add request to blockchain
+SC -> SC : await confirmation
+SC -> Backend : Subscription request verified
+Backend -> User : Request successful (waiting approval)
+
+== User Checking if subscribed ==
+User -> Backend : Check subscription
+Backend -> SC : Request subscription status
+SC -> Backend : Subscription request verified
+Backend -> User : Request successful (waiting approval)
+
+== Seller Accepting Subscription ==
+Seller -> Backend : Accept subscription request
+Backend -> SC : Update subscription status (approve subscription)
+SC -> SC : Check if valid
+SC -> Blockchain : Save updated subscription status
+SC -> Backend : Confirm Request
+Backend -> Seller : Subscription accepted
+@enduml

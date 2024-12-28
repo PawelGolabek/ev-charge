@@ -1,0 +1,44 @@
+@startuml
+!theme plain
+actor Admin
+actor Seller
+actor User
+actor "Unauthorized User" as UU
+entity IoT
+participant "Smart Contract" as SC
+Database Blockchain
+
+== Seller Viewing Requests ==
+Seller -> Metamask : Request to see recent user authorization requests
+Metamask -> SC : Fetch recent requests (unauthorized users)
+SC -> Seller : Return recent requests
+
+== EV Charging Validation ==
+User -> IoT : Request charging
+IoT -> Metamask : Request user validation
+Metamask -> SC : Check balance (verify with wallet address on blockchain)
+
+alt Response
+else success
+   IoT -> User : Begin charging
+   SC -> IoT : Charging event
+else some kind of failure
+   IoT -> User : Reject charging
+end
+
+== Create Summary ==
+Admin -> Metamask : Request summary
+Metamask -> SC : Retrieve data (validate role/balance)
+SC -> Admin : Provide summary data for transactions
+
+== Pay Sellers ==
+Admin -> Metamask : Request payment
+Metamask -> SC : Payment
+SC -> Blockchain : Mark payment
+
+== User Increasing Balance ==
+User -> Metamask : Request payment
+Metamask -> SC : Update balance
+SC -> Blockchain : Save updated balance
+SC -> User : Response
+@enduml
