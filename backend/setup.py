@@ -13,6 +13,7 @@
 # pip install markdown       # Markdown support for the browsable API.
 # pip install django-filter  # Filtering support
 # pip install django-cors-headers
+# pip install djangorestframework djangorestframework-simplejwt
 
 
 
@@ -48,4 +49,5 @@
 # ng serve
 
 # Backend
-# start index2.
+# env\Scripts\activate 
+# py manage.py runserver

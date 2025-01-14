@@ -6,15 +6,20 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = '__all__'
 
+
 class ChargerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Charger
         fields = '__all__'
-
+        
 class ChargingSessionSerializer(serializers.ModelSerializer):
+    client_address = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    charger_address = serializers.PrimaryKeyRelatedField(queryset=Charger.objects.all())
+    charger_owner = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
     total_cost = serializers.IntegerField(required=False)
     is_completed = serializers.BooleanField(required=False)
-    charger_owner = serializers.CharField(required=False)
+    date = serializers.DateTimeField(required=False)
+    demand = serializers.IntegerField()
 
     class Meta:
         model = ChargingSession
