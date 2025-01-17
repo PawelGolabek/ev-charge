@@ -22,6 +22,12 @@ urlpatterns = [
     path('api/generate-summaries-date/', views.GetDateRangeView.as_view(),name = 'summaries-generate-date'),
     path("api/fetch-summaries/", views.RetrieveTransactionSummaryView.as_view(), name = 'fetch-summaries'),
     path("api/pay-seller/", views.paySellerView.as_view(), name = 'pay-seller'),
+    path("api/add-user/", views.AddUserView.as_view(), name = 'add-user'),
+    #seller
+    path("api/check-contribution/", views.CheckContributionView.as_view(), name = 'check-contribution'),
+    path("api/add-charger/", views.AddChargerView.as_view(), name = 'add-charger'),
+    path("api/update-charger/", views.UpdateChargerPriceView.as_view(), name = 'update-charger'),
+    path("api/list-chargers/", views.ListMyChargersView.as_view(), name = 'list-chargers'),
     
 
     path('simple/', views.simple_endpoint),

@@ -32,10 +32,10 @@ describe("EVCharge", function () {
   });
 
   it("should allow admin to add a user", async function () {
-    await evCharge.addUser(testAddressNew, 3, 1000);
+    await evCharge.addUser(testAddressNew, 3);
     const user = await evCharge.users(testAddressNew);
     expect(user.role).to.equal(3); // Role.Client (3)
-    expect(user.balance).to.equal(1000);
+    expect(user.balance).to.equal(0);
   });
 
   it("should allow a client to increase balance", async function () {
@@ -97,7 +97,7 @@ describe("EVCharge", function () {
 
     const sellerIndex = userAddrs.indexOf(seller.address);
     expect(userRoles[sellerIndex]).to.equal(2); // 1 predefined account for tests. Will fail if changed starting conditions
-    expect(userBalances[sellerIndex]).to.equal(250);
+    expect(userBalances[sellerIndex]).to.equal(0);
   });
 
   

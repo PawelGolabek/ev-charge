@@ -2,7 +2,7 @@ from django.http import JsonResponse
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .models import User, Charger, ChargingSession, TransactionSummary
+from .models import Role, User, Charger, ChargingSession, TransactionSummary
 from .serializers import UserSerializer, ChargerSerializer, ChargingSessionSerializer
 from django.contrib.auth import authenticate
 from .tokens import get_tokens_for_user
@@ -141,6 +141,134 @@ class ChargingSessionCreateView(APIView):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class AddUserView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        auth_header = request.headers.get('Authorization')
+        token = auth_header.split(' ')[1]
+        decoded_token = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
+        admin_role = decoded_token.get('role')
+
+        if admin_role != "Admin":
+            return Response({
+                'status': 'error',
+                'message': 'Only admin can add users.'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        # Get user data from the request
+        valid_roles = ["None", "Admin", "Seller", "Client"]
+        user_address = request.data.get('user_address')
+        try:
+            roleUser = request.data.get('role')
+            if roleUser not in valid_roles:
+                return Response({
+                    'status': 'error',
+                    'message': f'Invalid role. Valid roles are: {", ".join(valid_roles)}.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Get the corresponding Role instance from the database
+            role = Role.objects.get(name=roleUser)
+        except Role.DoesNotExist:
+            return Response({
+                'status': 'error',
+                'message': 'Role not found in the database.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if the user already exists
+        if User.objects.filter(user_address=user_address).exists():
+            return Response({
+                'status': 'error',
+                'message': 'User already exists.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Blockchain interaction to add the user
+        try:
+            tx_hash = contract.functions.addUser(
+                Web3.to_checksum_address(user_address),
+                role.id-1,  # Mismatched id on db and bc
+            ).transact({'from': Web3.to_checksum_address(server_public_key)})
+            receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+
+            # Check if the transaction was successful
+            if receipt['status'] != 1:
+                return Response({
+                    'status': 'error',
+                    'message': 'Blockchain transaction failed.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Save the user to the database only if the blockchain transaction succeeds
+        user = User(
+            user_address=user_address,
+            role=role,  # Assign the Role instance
+            balance=0,
+            contribution=0
+        )
+        user.save()
+
+        return Response({
+            'status': 'success',
+            'message': 'User added successfully.',
+            'tx_hash': tx_hash.hex()
+        }, status=status.HTTP_201_CREATED)
+
+class CheckContributionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Extract the JWT token from the Authorization header
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            return Response({
+                'status': 'error',
+                'message': 'Authorization header missing.'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+        
+        token = auth_header.split(' ')[1]
+        decoded_token = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
+        role = decoded_token.get('role')
+        user_address = decoded_token.get('user_address')  # Assuming user_address is included in the token
+
+        # Ensure the user is a seller
+        if role != "Seller":
+            return Response({
+                'status': 'error',
+                'message': 'Only sellers can check their contributions.'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        # Verify user existence in the database
+        try:
+            user = User.objects.get(user_address=user_address)
+        except User.DoesNotExist:
+            return Response({
+                'status': 'error',
+                'message': 'User not found in the database.'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        # Retrieve contribution from the database
+        db_contribution = user.contribution
+
+        # Retrieve contribution from the blockchain
+        try:
+            blockchain_contribution = contract.functions.checkMyContribution().call({
+                'from': Web3.to_checksum_address(user_address)
+            })
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': f'Failed to fetch contribution from the blockchain: {str(e)}'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({
+            'status': 'success',
+            'data': {
+                'database_contribution': db_contribution,
+                'blockchain_contribution': blockchain_contribution
+            }
+        }, status=status.HTTP_200_OK)
 
 
 
@@ -377,3 +505,189 @@ class paySellerView(APIView):
         summary.save()
         print(f"Transaction successful with hash: {tx_hash.hex()}")
         return Response({"status": "success", "data":  receipt_hash}, status=status.HTTP_200_OK)
+    
+
+
+class AddChargerView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        # Extract the JWT token and decode it
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            return Response({
+                'status': 'error',
+                'message': 'Authorization header missing.'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+        
+        token = auth_header.split(' ')[1]
+        decoded_token = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
+        role = decoded_token.get('role')
+        user_address = decoded_token.get('user_address')  # Assuming `user_address` is in the token
+
+        # Ensure the user is a seller
+        if role != "Seller":
+            return Response({
+                'status': 'error',
+                'message': 'Only sellers can add chargers.'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        # Get data from the request
+        charger_address = request.data.get('charger_address')
+        price_per_kwh = request.data.get('price_per_kwh')
+
+        if not charger_address or not price_per_kwh:
+            return Response({
+                'status': 'error',
+                'message': 'Both charger_address and price_per_kwh are required.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if charger already exists
+        if Charger.objects.filter(charger_address=charger_address).exists():
+            return Response({
+                'status': 'error',
+                'message': 'Charger already exists.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Interact with the blockchain
+        try:
+            tx_hash = contract.functions.addCharger(
+                Web3.to_checksum_address(charger_address),
+                int(price_per_kwh)
+            ).transact({'from': Web3.to_checksum_address(user_address)})
+            receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+
+            if receipt['status'] != 1:
+                return Response({
+                    'status': 'error',
+                    'message': 'Blockchain transaction failed.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': f'Failed to add charger on blockchain: {str(e)}'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Save to the database
+        owner = User.objects.get(user_address=user_address)
+        charger = Charger(
+            charger_address=charger_address,
+            price_per_kwh=price_per_kwh,
+            owner=owner
+        )
+        charger.save()
+
+        return Response({
+            'status': 'success',
+            'message': 'Charger added successfully.',
+            'tx_hash': tx_hash.hex()
+        }, status=status.HTTP_201_CREATED)
+
+
+
+
+class UpdateChargerPriceView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        # Extract the JWT token and decode it
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            return Response({
+                'status': 'error',
+                'message': 'Authorization header missing.'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+
+        token = auth_header.split(' ')[1]
+        decoded_token = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
+        role = decoded_token.get('role')
+        user_address = decoded_token.get('user_address')  # Assuming `user_address` is in the token
+
+        # Ensure the user is a seller
+        if role != "Seller":
+            return Response({
+                'status': 'error',
+                'message': 'Only sellers can update charger prices.'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        # Get data from the request
+        charger_address = request.data.get('charger_address')
+        new_price_per_kwh = request.data.get('price_per_kwh')
+
+        if not charger_address or new_price_per_kwh is None:
+            return Response({
+                'status': 'error',
+                'message': 'Both charger_address and new_price_per_kwh are required.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Verify the charger exists and is owned by the user
+        try:
+            charger = Charger.objects.get(charger_address=charger_address, owner__user_address=user_address)
+        except Charger.DoesNotExist:
+            return Response({
+                'status': 'error',
+                'message': 'Charger not found or you do not own this charger.'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        # Interact with the blockchain
+        try:
+            tx_hash = contract.functions.updateChargerPrice(
+                Web3.to_checksum_address(charger_address),
+                int(new_price_per_kwh)
+            ).transact({'from': Web3.to_checksum_address(user_address)})
+            receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+
+            if receipt['status'] != 1:
+                return Response({
+                    'status': 'error',
+                    'message': 'Blockchain transaction failed.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': f'Failed to update price on blockchain: {str(e)}'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Update in the database
+        charger.price_per_kwh = new_price_per_kwh
+        charger.save()
+
+        return Response({
+            'status': 'success',
+            'message': 'Charger price updated successfully.',
+            'tx_hash': tx_hash.hex()
+        }, status=status.HTTP_200_OK)
+
+
+class ListMyChargersView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Extract and decode the token to get the seller's role and address
+        auth_header = request.headers.get('Authorization')
+        token = auth_header.split(' ')[1]
+        decoded_token = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
+        user_address = decoded_token.get('user_address')
+        user_role = decoded_token.get('role')
+
+        # Verify that the user is a seller
+        if user_role != "Seller":
+            return Response({
+                "status": "error",
+                "message": "Only sellers can view their chargers."
+            }, status=403)
+
+        # Query the chargers owned by this seller
+        chargers = Charger.objects.filter(owner__user_address=user_address)
+        charger_list = []
+
+        for charger in chargers:
+            charger_list.append({
+                "charger_address": charger.charger_address,
+                "price_per_kwh": charger.price_per_kwh
+            })
+
+        return Response({
+            "status": "success",
+            "data": charger_list
+        }, status=200)

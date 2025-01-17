@@ -76,12 +76,7 @@ contract EVCharge {
             Role.Client, Role.Client, Role.Client
         ];
 
-        int256[18] memory balances = [
-            int256(0), int256(0), int256(250), int256(250), int256(250),
-            int256(500), int256(500), int256(500), int256(500), int256(500),
-            int256(500), int256(500), int256(500), int256(500), int256(500),
-            int256(500), int256(500), int256(500)
-        ];
+
 
         for (uint256 i = 0; i < predefinedUsers.length; i++) {
             address addr = predefinedUsers[i];
@@ -89,7 +84,7 @@ contract EVCharge {
             users[addr] = User({
                 userAddress: addr,
                 role: roles[i],
-                balance: balances[i],
+                balance: 0,
                 contribution: 0
             });
         }
@@ -228,14 +223,14 @@ contract EVCharge {
         });
     }
 
-    function addUser(address userAddress, Role role, int initialBalance) public {
+    function addUser(address userAddress, Role role) public {
         require(msg.sender == initialAdmin, "Only admin can add users");
         require(users[userAddress].userAddress == address(0), "User already exists");
 
         users[userAddress] = User({
             userAddress: userAddress,
             role: role,
-            balance: initialBalance,
+            balance: 0,
             contribution: 0
         });
 
