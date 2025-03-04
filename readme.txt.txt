@@ -16,9 +16,9 @@ Run the application:
 
 Backend – Hardhat:
 npx hardhat node
-cd blockchain2/EVCharge
+cd blockchain/EVCharge
 npx hardhat run deploy.js --network localhost
-npx hardhat test
+
 
 Frontend – Angular:
 cd frontend/evcharge
@@ -28,5 +28,9 @@ Backend – Django:
 cd djbackend
 env\Scripts\activate
 py manage.py runserver
+
+Testing smart contract with chai:
+cd blockchain/EVCharge
+npx hardhat test
 
 Recommended: Microsoft Visual C++ 14.0+
