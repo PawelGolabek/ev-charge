@@ -1,37 +1,39 @@
-Python and libraries:
-py -m pip install --upgrade pip
-py -3.10 -m pip install regex==2024.9.11 pycryptodome==3.20.
-pip install web3 flask flask-cors django djangorestframework markdown django-filter django-cors-headers djangorestframework-simplejwt
+# Setup Guide
 
-Node.js and Angular:
-npm install -g @angular/cli
-npm i solidity-coverage ethers @typechain/ethers-v6 @metamask/sdk @synthetixio/synpress@latest
+## Python and Libraries
+py -m pip install --upgrade pip  
+py -3.10 -m pip install regex==2024.9.11 pycryptodome==3.20.  
+pip install web3 flask flask-cors django djangorestframework markdown django-filter django-cors-headers djangorestframework-simplejwt  
 
-Create an Angular project:
-ng new evcharge
-cd evcharge
-Copy frontend files to the new project
+## Node.js and Angular
+npm install -g @angular/cli  
+npm i solidity-coverage ethers @typechain/ethers-v6 @metamask/sdk @synthetixio/synpress@latest  
 
-Run the application:
+## Create an Angular Project
+ng new evcharge  
+cd evcharge  
+Copy frontend files to the new project.  
 
-Backend – Hardhat:
-cd blockchain
-npx hardhat node
-npx hardhat run deploy.js --network localhost
+## Run the Application  
 
+### Backend – Hardhat  
+cd blockchain  
+npx hardhat node  
+npx hardhat run deploy.js --network localhost  
 
-Frontend – Angular:
-cd frontend/evcharge
-ng serve
+### Frontend – Angular  
+cd frontend/evcharge  
+ng serve  
 
-Backend – Django:
-cd djbackend
-env\Scripts\activate
-cd EVCharge
-py manage.py runserver
+### Backend – Django  
+cd djbackend  
+env\Scripts\activate  
+cd EVCharge  
+py manage.py runserver  
 
-Testing smart contract with chai:
-cd blockchain/EVCharge
-npx hardhat test
+## Testing Smart Contract with Chai  
+cd blockchain/EVCharge  
+npx hardhat test  
 
-Recommended: Microsoft Visual C++ 14.0+
+### Recommended:  
+- Microsoft Visual C++ 14.0+  
