@@ -15,8 +15,8 @@ Copy frontend files to the new project
 Run the application:
 
 Backend – Hardhat:
+cd blockchain
 npx hardhat node
-cd blockchain/EVCharge
 npx hardhat run deploy.js --network localhost
 
 
@@ -27,6 +27,7 @@ ng serve
 Backend – Django:
 cd djbackend
 env\Scripts\activate
+cd EVCharge
 py manage.py runserver
 
 Testing smart contract with chai:
